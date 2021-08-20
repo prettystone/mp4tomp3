@@ -1,56 +1,58 @@
 package main
 
 import (
-	"os"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
-	"io/ioutil"
 	"strings"
 )
 
 type fileList struct {
-	path string
+	path     string
 	fileInfo os.FileInfo
 }
+
 func readDir(dir string) (data []fileList, err error) {
 	//判断文件或目录是否存在
-  file, err := os.Stat(dir)
+	file, err := os.Stat(dir)
 	if err != nil {
 		return data, err
 	}
 
 	//如果不是目录，直接返回文件信息
-  if !file.IsDir() {
-    data = append(data, fileList{path.Dir(dir) + "/", file})
-    return data, err
-  }
+	if !file.IsDir() {
+		data = append(data, fileList{path.Dir(dir) + "/", file})
+		return data, err
+	}
 
 	fmt.Println(dir)
-  fileInfo, err := ioutil.ReadDir(dir)
-  if err != nil {
-    fmt.Println(fileInfo)
-    return data, err
-  }
+	fileInfo, err := ioutil.ReadDir(dir)
+	if err != nil {
+		fmt.Println(fileInfo)
+		return data, err
+	}
 
-  //目录为空
-  if len(fileInfo) == 0 {
-    return
-  }
+	//目录为空
+	if len(fileInfo) == 0 {
+		return
+	}
 
-  for _, v := range fileInfo {
-    if v.IsDir() {
-      if subDir, err := readDir(dir + "/" + v.Name()); err != nil {
-        return data, err
-      } else {
-        data = append(data, subDir...)
-      }
-    } else {
-      data = append(data, fileList{strings.TrimRight(dir, "/") + "/", v})
-    }
-  }
-  return data, err
+	for _, v := range fileInfo {
+		if v.IsDir() {
+			if subDir, err := readDir(dir + "/" + v.Name()); err != nil {
+				return data, err
+			} else {
+				data = append(data, subDir...)
+			}
+		} else {
+			data = append(data, fileList{strings.TrimRight(dir, "/") + "/", v})
+		}
+	}
+	return data, err
 }
 
 func convert(mp4in string, mp3out string) {
@@ -60,28 +62,36 @@ func convert(mp4in string, mp3out string) {
 	fmt.Println(out)
 }
 
+var s = flag.String("i", "", "string类型参数")
+
 func main() {
+	flag.Parse()
 	pwd, b := os.Getwd()
 	fmt.Println(pwd)
 	fmt.Println(b)
-	filelist,err := readDir(pwd)
+	filelist, err := readDir(pwd)
 	if err != nil {
 		fmt.Println("读取文件时发生错误")
-		return 
+		return
 	}
 	for k, v := range filelist {
 		fi := v.path + v.fileInfo.Name()
 		fmt.Println(k, fi)
 		dir, file := filepath.Split(fi)
 		ext := filepath.Ext(file)
+		ext = strings.Trim(ext, ".")
 		fmt.Println("ext name:", ext)
-		if ext != ".mp4" {
-			fmt.Println("扩展名不是mp4，不处理：", ext)
+		dstExt := *s
+		if dstExt == "" {
+			dstExt = ".mp4"
+		}
+		if ext != dstExt {
+			fmt.Println("扩展名不匹配，不处理：", ext)
 			continue
 		}
 
 		mp4in := fi
-		mp3out := filepath.Join(dir, filepath.Base(file) + ".mp3")
+		mp3out := filepath.Join(dir, filepath.Base(file)+".mp3")
 		fmt.Println("mp4in: ", mp4in)
 		fmt.Println("mp3out: ", mp3out)
 
